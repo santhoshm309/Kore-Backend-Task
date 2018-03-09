@@ -1,0 +1,3 @@
+[run]
+source = kore_task
+omit = kore_task/test*
