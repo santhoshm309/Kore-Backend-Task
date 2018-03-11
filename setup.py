@@ -20,11 +20,12 @@ requires = [
     'zope.sqlalchemy',
     'waitress',
     'pyramid_log',
-    'pyramid_jwt',
-    'bcrypt'
+    'bcrypt',
+    'python-telegram-bot',
+    'PyJWT'
 ]
 
-tests_requir mysql://root:Santi_39@localhost/test?host=localhost?port=3306e = [
+tests_require = [
     'WebTest >= 1.3.1',  # py3 compat
     'pytest',
     'pytest-cov',
