@@ -1,6 +1,11 @@
 kore_task
 =========
 
+DEMO OFF THE APP CAN BE FOUND HERE -----
+    
+    http://task.kirana-pyramid.tk
+  
+
 Getting Started
 ---------------
 
