@@ -190,7 +190,7 @@ def signup(request):
 
 		# Send confirmation email .......................................................
 
-		flag = Helper.send_mail(request_body['email'],'Email Confirmation | Kore Task','signup','http://localhost:6543/verify?link='+hashv['hash'])
+		flag = Helper.send_mail(request_body['email'],'Email Confirmation | Kore Task','signup','http://localhost:3030/#/verify?link='+hashv['hash'])
 		if not flag:
 			session.rollback()
 			session.close()
@@ -231,6 +231,7 @@ def verify_email(request):
 		link_hash = dict(request.GET)
 
 		session=Session()
+
 
 		# Get the status of User for the hash in param...............................
 
