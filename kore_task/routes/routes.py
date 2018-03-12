@@ -7,3 +7,5 @@ def includeme(config):
     config.add_route('signout','/signout')
     config.add_route('send_totp', '/send-otp')
     config.add_route('check_totp','/check-otp')
+    config.add_route('password_token','/pass-token')
+    config.add_route('change_password','/change-pass')
