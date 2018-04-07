@@ -21,7 +21,6 @@ requires = [
     'waitress',
     'pyramid_log',
     'bcrypt',
-    'python-telegram-bot',
     'PyJWT'
 ]
 
