@@ -20,3 +20,4 @@ Data.fs*
 .DS_Store
 coverage
 test
+kore_task/files/*
