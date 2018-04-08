@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="14f003dd-3a11-4cb1-a1ef-80320c58d656" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/development.ini" afterPath="$PROJECT_DIR$/development.ini" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/kore_task/__init__.py" afterPath="$PROJECT_DIR$/kore_task/__init__.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/kore_task/controllers/bill_controller.py" afterPath="$PROJECT_DIR$/kore_task/controllers/bill_controller.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/kore_task/controllers/main_controller.py" afterPath="$PROJECT_DIR$/kore_task/controllers/main_controller.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/kore_task/models/user_models.py" afterPath="$PROJECT_DIR$/kore_task/models/user_models.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/kore_task/routes/routes.py" afterPath="$PROJECT_DIR$/kore_task/routes/routes.py" />
-    </list>
+    <list default="true" id="14f003dd-3a11-4cb1-a1ef-80320c58d656" name="Default" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
