@@ -1,3 +1,5 @@
+from sqlalchemy import extract
+
 from ..constants.helper import Helper
 from pyramid.view import view_config
 from ..models.user_models import *
@@ -75,7 +77,7 @@ def login(request):
 
         session.commit()
         session.close()
-        return Helper.construct_response(code, message, response)
+        return Helper.construct_response(200, message, response)
 
     except DBAPIError as dbErr:
         '''
@@ -134,6 +136,12 @@ def signout(request):
         print("Server Error ................................." + str(e))
         return Helper.construct_response(500, 'Server Error', '')
 
+def user_of(session, request_body, user):
+    all_bills = session.query(UserTransaction).filter(UserTransaction.user_id == user.Users.id).filter(
+        extract('month', UserTransaction.dob) == request_body['month']).order_by(
+        UserTransaction.dob.asc()).all()
+    res = user_model.user_outflows(all_bills, 0)
+    return res
 
 @view_config(route_name='outflows', request_method="POST")
 def init(request):
@@ -145,22 +153,44 @@ def init(request):
             session.close()
             return Helper.construct_response(401, 'Unauthorized')
 
+
         user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
             UserTokens.token == request_body['token']).first()
 
         if not user:
             return Helper.construct_response(401, 'Unauthorized')
 
-        # Individual user ..............................................................................
-
         if user.Users.role == 0:
-            all_bills = session.query(UserOutflow).filter(UserOutflow.user_id == user.Users.id).all()
-            res = user_model.user_outflows(all_bills)
+            # For a single user ........................................................
+            if not 'month' in request_body:
+
+                session.close()
+                return Helper.construct_response(400, 'Invalid Data')
+            res = user_of(session, request_body, user)
             session.close()
-            return Helper.construct_response(200, '', res)
+            return Helper.construct_response(200, 'Success', res)
 
         if user.Users.role == 1:
-            all_bills = session.query()
+            # For admin ..............................
+            if not 'user_id' in request_body:
+                if not 'month' in request_body:
+                    return Helper.construct_response(400, 'Invalid Data')
+                else:
+                    res = user_of(session,request_body,user)
+                    session.close()
+                    return Helper.construct_response(200, 'Success', res)
+            elif int(request_body['user_id']) == user.Users.id:
+                    return Helper.construct_response(400, 'Invalid Data')
+            else:
+                all_bills = session.query(UserTransaction).filter(
+                UserTransaction.user_id == request_body['user_id']).order_by(UserTransaction.dob.asc()).all()
+                res = user_model.user_outflows(all_bills, 1)
+                session.close()
+                return Helper.construct_response(200, 'Success', res)
+
+
+
+
 
     except DBAPIError as dbErr:
         '''

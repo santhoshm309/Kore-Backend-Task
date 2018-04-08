@@ -29,15 +29,12 @@ def capture_bill(request):
 
     token = request.POST['token']
 
-    # if not 'paid_for' in request.POST or not 'total_amount' in request.POST or not 'reason' in request.POST or not 'bill' in request.POST or not 'dob' in request.POST:
-    #     return Helper.construct_response(400, 'Invalid data', '')
+    if not 'paid_for' in request.POST or not 'total_amount' in request.POST or not 'bill' in request.POST or not 'dob' in request.POST:
+        return Helper.construct_response(400, 'Invalid data', '')
 
-    paid_for = "San"
-    total_amount = "10000"
-    reason = "Test"
-
-
-
+    paid_for = request.POST['paid_for']
+    total_amount = request.POST['total_amount']
+    reason = request.POST['reason'] if 'reason' in request.POST else None
     delete_expired_tokens(session)
 
     user = session.query(UserTokens).filter(UserTokens.token == token).first()
@@ -73,7 +70,7 @@ def capture_bill(request):
         except Exception as pdfErr:
             print(pdfErr)
             session.close()
-            return Helper.construct_response(401, 'Unsupported file', '')
+            return Helper.construct_response(400, 'Unsupported file', '')
 
     try:
         # Write to database .................................................................
@@ -91,11 +88,21 @@ def capture_bill(request):
         }
         user_outflow = Helper.created_at(user_outflow)
 
-        obj = UserOutflow(**user_outflow)
+        obj = UserTransaction(**user_outflow)
 
         session.add(obj)
 
         # Subtract from total balance ........................................................
+
+        user = session.query(Users).filter(Users.id == user.user_id).first()
+
+        if not user:
+            session.close()
+            return Helper.construct_response(401, 'Unauthorized')
+
+        # Updating balance .........................................
+
+        user.current = float(user.current) - float(total_amount)
 
         session.commit()
         session.close()
@@ -129,16 +136,16 @@ def view_bill(request):
         token = request_body['token']
         param = request.matchdict['hash']
         delete_expired_tokens(session)
-        user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(UserTokens.token==token).first()
-
+        user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
+            UserTokens.token == token).first()
 
         if not user:
-            return Helper.construct_response(401,'Unauthorized')
+            return Helper.construct_response(401, 'Unauthorized')
 
-        hashObj = session.query(UserOutflow).filter(UserOutflow.hash == param).first()
+        hashObj = session.query(UserTransaction).filter(UserTransaction.hash == param).first()
 
-        if user.Users.role == 0 and not hashObj.user_id == user.Users.id :
-            return Helper.construct_response(401,'Unauthorized')
+        if user.Users.role == 0 and not hashObj.user_id == user.Users.id:
+            return Helper.construct_response(401, 'Unauthorized')
 
         if not hashObj:
             return Helper.construct_response(404, 'Not found')
@@ -163,3 +170,115 @@ def view_bill(request):
         session.close()
         print(e)
         return Helper.construct_response()
+
+
+@view_config(route_name='add_money', request_method="POST")
+def add_money(request):
+    try:
+        request_body = request.json_body
+
+        if not 'token' in request_body:
+            return Helper.construct_response(401, 'Unauthorized')
+
+        if not 'details' in request_body and not len(request_body['details']) > 0:
+            return Helper.construct_response(400, 'Invalid data')
+
+        session = Session()
+        delete_expired_tokens(session)
+        user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
+            UserTokens.token == request_body['token']).first()
+
+        if not user or user.Users.role == 0:
+            session.close()
+            return Helper.construct_response(401, 'Unauthorized')
+
+        for team in request_body['details']:
+            # Admin adding money to his account ............................
+            if not 'id' in team or not 'amount' in team:
+                session.close()
+                return Helper.construct_response(400, 'Invalid data')
+            if float(team['amount']) < 0:
+                return Helper.construct_response(400, 'Invalid data')
+            if team['id'] == user.Users.id:
+                user_trans = {
+                    'paid_for': user.Users.name,
+                    'amount': team['amount'],
+                    'type': 1,
+                    'dob': datetime.datetime.now().strftime("%Y-%m-%d"),
+                    'user_id': user.Users.id,
+                    'reason': request_body['reason'] if 'reason' in request_body else None
+
+                }
+
+                user_trans = Helper.created_at(user_trans)
+
+                user_trans_obj = UserTransaction(**user_trans)
+
+                session.add(user_trans_obj)
+
+                user.Users.current = float(user.Users.current) + float(team['amount'])
+
+                session.commit()
+
+            elif team['id'] != user.Users.id:
+                paid_for = session.query(Users).filter(Users.id == team['id']).first()
+
+                if not paid_for:
+                    session.close()
+                    return Helper.construct_response(404, ' Invalid to user ')
+                admin_trans = {
+                    'paid_for': paid_for.name,
+                    'amount': float(team['amount']),
+                    'reason': team['reason'] if 'reason' in team else None,
+                    'dob': datetime.datetime.now().strftime("%Y-%m-%d"),
+                    'user_id': user.Users.id
+                }
+
+                admin_trans = Helper.created_at(admin_trans)
+
+                admin_trans_obj = UserTransaction(**admin_trans)
+
+                session.add(admin_trans_obj)
+
+                for_trans = {
+                    'paid_for': paid_for.name,
+                    'amount': float(team['amount']),
+                    'reason': team['reason'] if 'reason' in team else None,
+                    'dob': datetime.datetime.now().strftime("%Y-%m-%d"),
+                    'type': 1,
+                    'user_id': paid_for.id
+
+                }
+
+                for_trans = Helper.created_at(for_trans)
+
+                for_trans_obj = UserTransaction(**for_trans)
+
+                session.add(for_trans_obj)
+
+                user.Users.current = float(user.Users.current) - float(team['amount'])
+
+                paid_for.current = float(paid_for.current) + float(team['amount'])
+
+                session.commit()
+
+        session.close()
+
+        return Helper.construct_response(200, 'Success')
+
+    except DBAPIError as dbErr:
+
+        '''
+            SQL error ..................................................................
+        '''
+        print("MYSQL Error --------------------------------" + str(dbErr.orig))
+        # print("MYSQL Error-------------------------" + code,message)
+        return Helper.construct_response(500, 'Internal Error', '')
+
+
+    except Exception as e:
+
+        print(e)
+        return Helper.construct_response()
+
+

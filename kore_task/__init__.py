@@ -11,7 +11,6 @@ def upload_size(event):
     log = logging.getLogger(__name__)
     r = event.request
     # Restrict upload size to 2 mb
-    log.info(r.url+"    " + r.method)
     if r.content_length and  r.content_length > 1024*1024*3:
         raise HTTPBadRequest("Payload too large")
 

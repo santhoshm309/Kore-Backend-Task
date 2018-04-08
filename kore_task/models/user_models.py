@@ -23,8 +23,8 @@ class UserTokens(Base):
     __table_args__ = {'autoload': True}
 
 
-class UserOutflow(Base):
-    __tablename__ = 'UserOutflow'
+class UserTransaction(Base):
+    __tablename__ = 'UserTransaction'
     __table_args__ = {'autoload': True}
 
 
@@ -74,35 +74,40 @@ class UserModel:
         session = Session()
         while True:
             filename = self.random_hash(0)
-            result = session.query(UserOutflow).filter(UserOutflow.hash == filename).first()
+            result = session.query(UserTransaction).filter(UserTransaction.hash == filename).first()
             if not result:
                 return filename
 
-    def user_outflows(self, result_set):
-        total_amounts = {}
+    def user_outflows(self, result_set, flag):
+
         response_body = {}
         for result in result_set:
             outflow = {
-                'reason': result.reason,
+                'reason': result.reason if result.reason else None,
                 'paid_for': result.paid_for,
                 'dob': result.dob.strftime("%d/%m/%Y"),
                 'id': result.id,
-                'bill_url': BASE_URI + result.bill_url,
+                'bill_url': BASE_URI + result.bill_url if result.bill_url else None,
                 'amount': float(result.amount),
-                'upload_date' : result.created_at.strftime("%d/%m/%Y")
+                'upload_date': result.created_at.strftime("%d/%m/%Y"),
+                'type': result.type
             }
-            month = result.dob.strftime("%B")
+            month = 'month' if flag == 0 else result.dob.strftime("%B")
             if not month in response_body:
                 response_body[month] = {}
                 response_body[month]['outflows'] = []
                 response_body[month]['outflows'].append(outflow)
-                total_amounts[month] = float(result.amount)
+                response_body[month]['spent'] = float(result.amount) if result.type == 0 else 0
+
+                response_body[month]['earned'] = float(result.amount) if result.type == 1 else 0
+
+
             else:
 
                 response_body[month]['outflows'].append(outflow)
-                total_amounts[month] += float(result.amount)
-
-        for month in total_amounts:
-            response_body[month]['total_amount'] = total_amounts[month]
+                if result.type == 0:
+                    response_body[month]['spent'] += float(result.amount)
+                if result.type == 1:
+                    response_body[month]['earned'] += float(result.amount)
 
         return response_body

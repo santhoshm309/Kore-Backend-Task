@@ -7,3 +7,4 @@ def includeme(config):
     config.add_route('capture_bill' , '/capture')
     config.add_route('view_bill','/view-bill/{hash:[0-9A-Z]{16}}')
     config.add_route('outflows', '/outflows')
+    config.add_route('add_money', '/add-money')
