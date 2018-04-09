@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 import random, string
 import bcrypt
 
-BASE_URI = 'http://localhost:6543'
+BASE_URI = 'https://server.kirana-pyramid.tk'
 
 
 class Users(Base):
@@ -28,7 +28,23 @@ class UserTransaction(Base):
     __table_args__ = {'autoload': True}
 
 
+class UserReimbursementTicket(Base):
+    __tablename__ = 'UserReimbursementTicket'
+    __table_args__ = {'autoload': True}
+
+
 class UserModel:
+    def get_users(self, result_set):
+        res = []
+        for result in result_set:
+            user = {
+                'id' : result.id,
+                'name' : result.name
+            }
+
+            res.append(user)
+        return res
+
     def get_user_obj(self, request_body):
         return {
             'name': request_body['name'],

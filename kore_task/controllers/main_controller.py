@@ -136,12 +136,14 @@ def signout(request):
         print("Server Error ................................." + str(e))
         return Helper.construct_response(500, 'Server Error', '')
 
+
 def user_of(session, request_body, user):
     all_bills = session.query(UserTransaction).filter(UserTransaction.user_id == user.Users.id).filter(
         extract('month', UserTransaction.dob) == request_body['month']).order_by(
         UserTransaction.dob.asc()).all()
     res = user_model.user_outflows(all_bills, 0)
     return res
+
 
 @view_config(route_name='outflows', request_method="POST")
 def init(request):
@@ -153,7 +155,6 @@ def init(request):
             session.close()
             return Helper.construct_response(401, 'Unauthorized')
 
-
         user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
             UserTokens.token == request_body['token']).first()
 
@@ -163,10 +164,10 @@ def init(request):
         if user.Users.role == 0:
             # For a single user ........................................................
             if not 'month' in request_body:
-
                 session.close()
                 return Helper.construct_response(400, 'Invalid Data')
             res = user_of(session, request_body, user)
+            res['balance'] = float(user.Users.current)
             session.close()
             return Helper.construct_response(200, 'Success', res)
 
@@ -176,21 +177,192 @@ def init(request):
                 if not 'month' in request_body:
                     return Helper.construct_response(400, 'Invalid Data')
                 else:
-                    res = user_of(session,request_body,user)
+                    res = user_of(session, request_body, user)
+                    res['balance'] = float(user.Users.current)
                     session.close()
                     return Helper.construct_response(200, 'Success', res)
             elif int(request_body['user_id']) == user.Users.id:
-                    return Helper.construct_response(400, 'Invalid Data')
+                return Helper.construct_response(400, 'Invalid Data')
             else:
                 all_bills = session.query(UserTransaction).filter(
-                UserTransaction.user_id == request_body['user_id']).order_by(UserTransaction.dob.asc()).all()
+                    UserTransaction.user_id == request_body['user_id']).order_by(UserTransaction.dob.asc()).all()
                 res = user_model.user_outflows(all_bills, 1)
+                res['balance'] = float(user.Users.current)
                 session.close()
                 return Helper.construct_response(200, 'Success', res)
 
 
 
 
+
+    except DBAPIError as dbErr:
+        '''
+            SQL error ..................................................................
+        '''
+        print("MYSQL Error --------------------------------" + str(dbErr.orig))
+        session.close()
+        # print("MYSQL Error-------------------------" + code,message)
+        return Helper.construct_response(500, 'Internal Error', '')
+
+
+    except Exception as e:
+        session.close()
+        print("Server Error ................................." + str(e))
+        return Helper.construct_response(500, 'Server Error', '')
+
+
+@view_config(route_name="users", request_method="POST")
+def users(request):
+    session = Session()
+    request_body = request.json_body
+    try:
+        if not 'token' in request_body:
+            return Helper.construct_response(401, 'Unauthorized')
+
+        delete_expired_tokens(session)
+        user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
+            UserTokens.token == request_body['token']).first()
+
+        if not user or user.Users.role == 0:
+            return Helper.construct_response(401, 'Unauthorized')
+
+        result_set = session.query(Users).all()
+
+        return Helper.construct_response(200, 'Success', user_model.get_users(result_set))
+
+
+    except DBAPIError as dbErr:
+        '''
+            SQL error ..................................................................
+        '''
+        print("MYSQL Error --------------------------------" + str(dbErr.orig))
+        session.close()
+        # print("MYSQL Error-------------------------" + code,message)
+        return Helper.construct_response(500, 'Internal Error', '')
+
+
+    except Exception as e:
+        session.close()
+        print("Server Error ................................." + str(e))
+        return Helper.construct_response(500, 'Server Error', '')
+
+
+@view_config(route_name="raise_reimbursement_ticket", request_method="POST")
+def raise_reimbursement(request):
+    session = Session()
+    try:
+
+        request_body = request.json_body
+
+        if not 'token' in request_body:
+            return Helper.construct_response(401, 'Unauthorized')
+
+        delete_expired_tokens(session)
+
+        user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
+            UserTokens.token == request_body['token']).first()
+
+        if not user:
+            return Helper.construct_response(401, 'Unauthorized')
+
+        if user.Users.role == 1:
+            return Helper.construct_response(400, 'Invalid request')
+
+        if float(user.Users.current) >= 0:
+            return Helper.construct_response(400, 'Invalid Request')
+
+        existing = session.query(UserReimbursementTicket).filter(
+            UserReimbursementTicket.user_id == user.Users.id).first()
+
+        if existing:
+            return Helper.construct_response(400, 'Already requested')
+
+        reimbursement = {
+            'user_id': user.Users.id,
+            'requested_amount': -float(user.Users.current)
+        }
+
+        re_obj = UserReimbursementTicket(**reimbursement)
+
+        session.add(re_obj)
+
+        session.commit()
+
+        return Helper.construct_response(200, 'Success')
+
+
+
+    except DBAPIError as dbErr:
+        '''
+            SQL error ..................................................................
+        '''
+        print("MYSQL Error --------------------------------" + str(dbErr.orig))
+        session.close()
+        # print("MYSQL Error-------------------------" + code,message)
+        return Helper.construct_response(500, 'Internal Error', '')
+
+
+    except Exception as e:
+        session.close()
+        print("Server Error ................................." + str(e))
+        return Helper.construct_response(500, 'Server Error', '')
+
+
+@view_config(route_name='approve_ticket', request_method="POST")
+def approve_ticket(request):
+    session = Session()
+
+    try:
+        request_body = request.json_body
+
+        if not 'token' in request_body:
+            session.close()
+            return Helper.construct_response(401, 'Unauthorized')
+
+        if not 'amount' in request_body or float(request_body['amount']) <= 0 or not 'user_id' in request_body:
+            session.close()
+            return Helper.construct_response(400, 'Invalid Data')
+
+        delete_expired_tokens(session)
+        user = session.query(Users, UserTokens).join(UserTokens, UserTokens.user_id == Users.id).filter(
+            UserTokens.token == request_body['token']).first()
+
+        if not user or user.Users.role == 0:
+            session.close()
+            return Helper.construct_response(401, 'Unauthorized')
+
+        ticket = session.query(UserReimbursementTicket, Users).join(Users,
+                                                                    Users.id == UserReimbursementTicket.user_id).filter(
+            UserReimbursementTicket.user_id == request_body['user_id']).first()
+
+        if not ticket:
+            session.close()
+            return Helper.construct_response(404, 'Ticket not raised')
+
+        ticket.UserReimbursementTicket.approved_amount = float(request_body['amount'])
+        ticket.UserReimbursementTicket.status = 1
+
+        trans = {
+            'user_id': user.Users.id,
+            'paid_for': "Reimbursement for - " + ticket.Users.name,
+            'amount': request_body['amount'],
+            'reason': None,
+            'dob': datetime.datetime.now().strftime("%Y-%m-%d")
+        }
+
+        trans = Helper.created_at(trans)
+
+        trans_obj = UserTransaction(**trans)
+
+        session.add(trans_obj)
+
+        user.Users.current = float(user.Users.current) - float(request_body['amount'])
+
+        session.commit()
+
+        session.close()
+
+        return Helper.construct_response(200, 'Success')
 
     except DBAPIError as dbErr:
         '''
