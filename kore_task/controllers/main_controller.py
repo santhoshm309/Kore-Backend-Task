@@ -141,7 +141,8 @@ def user_of(session, request_body, user):
     all_bills = session.query(UserTransaction).filter(UserTransaction.user_id == user.Users.id).filter(
         extract('month', UserTransaction.dob) == request_body['month']).order_by(
         UserTransaction.dob.asc()).all()
-    res = user_model.user_outflows(all_bills, 0)
+    res = user_model.user_outflows(all_bills, 0) 
+    session.close()
     return res
 
 

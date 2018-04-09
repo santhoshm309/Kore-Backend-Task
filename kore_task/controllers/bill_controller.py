@@ -125,11 +125,11 @@ def capture_bill(request):
     return Helper.construct_response(200, 'Success', '')
 
 
-@view_config(route_name='view_bill', request_method="POST")
+@view_config(route_name='view_bill', request_method="GET")
 def view_bill(request):
     session = Session()
     try:
-        request_body = request.json_body
+        request_body = dict(request.GET)
         if not 'token' in request_body:
             return Helper.construct_response(401, 'Unauthorized')
 
